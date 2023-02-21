@@ -2,7 +2,7 @@ import json
 import requests
 import io
 import base64
-import sys
+import os
 import argparse
 from PIL import Image, PngImagePlugin
 
@@ -21,8 +21,14 @@ def main():
     url = "http://127.0.0.1:7860"
     samplers = []
     models = []    
-
     handleArgs()   
+    # Check for txt2Iimg Dir.  Create it doesn't exist
+    dir = "txt2img"
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+        print("\"txt2img\" directory created")
+    else:
+        print("\"txt2img\" directory found")
     run()
    
 def getCurrentModel():
