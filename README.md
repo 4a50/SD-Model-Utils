@@ -1,5 +1,5 @@
 # Stable Diffusion Sample and Model Cycler
-## Author: JP Jones
+## By: [4a50](https://github.com/4a50)
 ---
 ### Python Script to take a Stable Diffusion Image and cycle through either all Samplers, all Models, or both
 
