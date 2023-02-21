@@ -4,6 +4,7 @@ import io
 import base64
 import os
 import argparse
+import inquirer
 from PIL import Image, PngImagePlugin
 
 def main():
@@ -13,24 +14,37 @@ def main():
     global path
     global url
     global fileLocation
+    global useSelectModels
+    global selectModelList
+    global models
     fileLocation = './txt2img/'
     payload = {}    
     allSamples = False
     allModels = False
+    useSelectModels = False
     path = ''
     url = "http://127.0.0.1:7860"
-    samplers = []
-    models = []    
+    samplers = []    
+    selectModelList = []
+    models = getAllModels()
     handleArgs()   
     # Check for txt2Iimg Dir.  Create it doesn't exist
+    
+    run()
+def checkForDirs():
     dir = "txt2img"
     if not os.path.exists(dir):
         os.makedirs(dir)
         print("\"txt2img\" directory created")
     else:
         print("\"txt2img\" directory found")
-    run()
-   
+    dir = "data"
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+        print("\"data\" directory created")
+    else:
+        print("\"data\" directory found")
+
 def getCurrentModel():
     resp = requests.get(f'{url}/sdapi/v1/options')
     r = resp.json()
@@ -148,8 +162,11 @@ def call_server_all_Samplers(modelName = None):
             imageName = f'{counter}-{imageNamePrefix}{s}-output.png'
             print('Processing: ' + s)
             payload["sampler_name"] = s
-            r = call_server_txt2img()               
-            processImages([{"name": imageName, "image": r}])    
+            try:
+                r = call_server_txt2img()               
+                processImages([{"name": imageName, "image": r}])    
+            except:
+                print(f'Error in calling API for Image: {imageName}')
             counter += 1
     else:
         print(payload.keys())
@@ -162,27 +179,33 @@ def call_server_txt2img():
     global payload
     with open('./data/payload.json', 'w') as f:
         f.write(json.dumps(payload))
-    return requests.post(url=f'{url}/sdapi/v1/txt2img', json=payload).json()
-def call_server_all_Models():
+    req = requests.post(url=f'{url}/sdapi/v1/txt2img', json=payload).json()
+    return req
+def useCuratedModels():
     # TODO: Update OPtions payload to switch around the Models
     global payload
+    global useSelectModels
     global allSamples
     global allModels    
-    models = getAllModels()
-    imagesToProcess = []
+    global models
+    useModels = []
+    print(f'CuratedModels [allSamples: {allSamples}] [allModels: {allModels}] [useSelectModels: {useSelectModels}]')
     if (allModels == True):
-        print(f'Using total of models {len(models)} used')
-        payload["override_settings_restore_afterwards"] = False
-        overrideSetting ={}
-        overrideSetting["sd_model_checkpoint"] = models[0]
-
-        for m in models:
-            print(f'Shifting Model to {m["fullName"]}')
-            optionsPayload = {"sd_model_checkpoint": m["fullName"]}
-            print(json.dumps(optionsPayload))
-            status = requests.post(url=f'{url}/sdapi/v1/options', json=optionsPayload)
-            print(status.json())
-            call_server_all_Samplers()
+        print('Cycling Throug All Models')
+        useModels = models
+    elif(allModels == False and useSelectModels == True):
+        print('Cycling through curated models')
+        useModels = selectModelList
+    print(f'Using total of models {len(useModels)} used')       
+    print('Use Models: ')
+    print(useModels)
+    for m in useModels:
+        print(f'Shifting Model to {m["fullName"]}')
+        optionsPayload = {"sd_model_checkpoint": m["fullName"]}
+        print(json.dumps(optionsPayload))
+        status = requests.post(url=f'{url}/sdapi/v1/options', json=optionsPayload)
+        print(status.json())
+        call_server_all_Samplers()
             
             
 def printImageInfo(image):
@@ -194,12 +217,14 @@ def handleArgs():
     global allSamples
     allSamples = False
     global allModels
-    allModels = False     
+    allModels = False
+    global useSelectModels     
     
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="Path to PNG file with Stable Diffusion data")
-    parser.add_argument("-m", "--models", help="Use All Models", action="store_true")
+    parser.add_argument("-ma", "--modelsall", help="Use All Models", action="store_true")
     parser.add_argument("-s", "--samplers", help="Use All Samplers", action="store_true")
+    parser.add_argument("-ms", "--modelsselect", help="Use Only Selected Models", action="store_true")
     args = parser.parse_args()
     # -m allModels -s allSamplers arg1 = path to png
     print("Using Path: ", args.path)    
@@ -211,20 +236,46 @@ def handleArgs():
         print('Unable to contact SD Server.  Have you started it?')
         quit()
     print('Initial Payload Created')
-    if args.models:
+    if args.modelsall:
         allModels = True
         print("Use All Models")
     if args.samplers:
         allSamples = True
         print("Use All Samplers")
+    if args.modelsselect:
+        allModels = False
+        useSelectModels = True
+        selectModelsToUse()
+        print("Use Curated Models")
+def selectModelsToUse():
+    global selectModelList
+    global models
+    modelShortNameList = []
+    for m in models:
+        modelShortNameList.append(m["shortName"])
+
+    questions = [inquirer.Checkbox('selectedModels',
+        message="Select Models to Use",
+        choices=modelShortNameList
+        )]
+    answers = inquirer.prompt(questions)
+    for ans in answers["selectedModels"]:
+        idx = next((i for i, item in enumerate(models) if item["shortName"] == ans), None)
+        if (idx != None):
+            selectModelList.append(models[idx])
+    print(selectModelList)
     
 def run():
     global allSamples
     global allModels
-    if (allSamples == True and allModels == False):
+    global useSelectModels
+    print(f'Commence Run [allSamples: {allSamples}] [allModels: {allModels}] [useSelectModels: {useSelectModels}]')
+    if (allSamples == True and allModels == False and useSelectModels == False):
+        print('Samplers Only')
         call_server_all_Samplers()
     else:
-        call_server_all_Models()
+        print('Sampler and Models')
+        useCuratedModels()
 
 
 if(__name__ == "__main__"):
