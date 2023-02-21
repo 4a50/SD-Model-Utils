@@ -294,6 +294,8 @@ def handleArgs():
     global useSelectSamplers
 
     parser = argparse.ArgumentParser()
+    parser.description = 'Cycles a supplied image through all/selected Models and Samplers'
+    parser.epilog = 'No options provided will create an image using data from image'
     parser.add_argument(
         "path", help="Path to PNG file with Stable Diffusion data")
     parser.add_argument("-ma", "--modelsall",
