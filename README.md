@@ -8,19 +8,24 @@
 ---
 Command Line:
 ```
-usage: SD-images-Script.py [-h] [-ma] [-s] [-ms] path
+usage: SD-images-Script.py [-h] [-ma] [-sa] [-ss] [-ms] path
+
+Cycles a supplied image through all/selected Models and Samplers
 
 positional arguments:
-  path                 Path to PNG file with Stable Diffusion data
+  path                  Path to PNG file with Stable Diffusion data
 
 options:
-  -h, --help           show this help message and exit
-  -ma, --modelsall     Use All Models
-  -s, --samplers       Use All Samplers
-  -ms, --modelsselect  Use Only Selected Models
+  -h, --help            show this help message and exit
+  -ma, --modelsall      Use All Models
+  -sa, --samplersall    Use All Samplers
+  -ss, --samplerselect  Use Only Selected Samplers
+  -ms, --modelsselect   Use Only Selected Models
+
+No options provided will create an image using data from image
 ```
 
 |Version|Description|Date
 |---|---|--|
 |1.0| Use PNG to cycle through Samplers or Models CLI|2/20/21
-|1.1| Added Selectable Models|2/21/21
+|1.1| Added Selectable Models and Samplers|2/21/21
