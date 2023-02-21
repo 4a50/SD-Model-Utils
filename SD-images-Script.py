@@ -15,18 +15,25 @@ def main():
     global url
     global fileLocation
     global useSelectModels
+    global useSelectSamplers
     global selectModelList
+    global selectSamplerList
     global models
+    global samplers
     fileLocation = './txt2img/'
     payload = {}    
     allSamples = False
     allModels = False
+    useSelectSamplers = False
     useSelectModels = False
     path = ''
     url = "http://127.0.0.1:7860"
-    samplers = []    
     selectModelList = []
+    selectSamplerList = []
     models = getAllModels()
+    print('All Model Names Retrieved')
+    samplers = getSamplerList()
+    print('All Sampler Names Retrieved')
     handleArgs()   
     # Check for txt2Iimg Dir.  Create it doesn't exist
     
@@ -68,7 +75,7 @@ def getAllModels():
     
     return  models
             
-def getSampleList():
+def getSamplerList():
     samplers = []
     resp = requests.get(f'{url}/sdapi/v1/samplers')
     r = resp.json()   
@@ -141,10 +148,13 @@ def prepareModelName(model):
         finalString += f'{s}-'
     return finalString
 
-def call_server_all_Samplers(modelName = None):
+def cycleSamplers(modelName = None):
     global payload
     global allSamples
+    global samplers
+    global selectSamplerList
     global url
+    useSamplersList = []
     getModel = requests.get(url=f'{url}/sdapi/v1/options').json()
     print('MODEL: ' + getModel["sd_model_checkpoint"])
     
@@ -154,26 +164,26 @@ def call_server_all_Samplers(modelName = None):
     else:
         imageNamePrefix += prepareModelName(getModel["sd_model_checkpoint"])
 
-    if(allSamples == True):
-        sampleList = getSampleList()
-        print(f'Cycling through {len(sampleList)} samplers')
-        counter = 0
-        for s in sampleList:
-            imageName = f'{counter}-{imageNamePrefix}{s}-output.png'
-            print('Processing: ' + s)
-            payload["sampler_name"] = s
-            try:
-                r = call_server_txt2img()               
-                processImages([{"name": imageName, "image": r}])    
-            except:
-                print(f'Error in calling API for Image: {imageName}')
-            counter += 1
+    if(allSamples == True):    
+        useSamplersList = samplers
+    elif(useSelectSamplers == True):
+        useSamplersList = selectSamplerList
     else:
-        print(payload.keys())
-        print('Single Sampler used: ' + payload["sampler_name"])
-        imageName = f'{imageNamePrefix}{payload["sampler_name"]}-output.png'
-        r = call_server_txt2img() 
-        processImages(processImages([{"name": imageName, "image": r}]))
+        print('No curated sampler used')
+        useSamplersList.append(payload["sampler_name"])
+
+    print(f'Cycling through {len(useSamplersList)} samplers')
+    counter = 0
+    for s in useSamplersList:
+        imageName = f'{counter}-{imageNamePrefix}{s}-output.png'
+        print('Processing: ' + s)
+        payload["sampler_name"] = s
+        try:
+            r = call_server_txt2img()               
+            processImages([{"name": imageName, "image": r}])    
+        except:
+            print(f'Error in calling API for Image: {imageName}')
+        counter += 1
 def call_server_txt2img():
     global url
     global payload
@@ -181,7 +191,7 @@ def call_server_txt2img():
         f.write(json.dumps(payload))
     req = requests.post(url=f'{url}/sdapi/v1/txt2img', json=payload).json()
     return req
-def useCuratedModels():
+def cycleModels():
     # TODO: Update OPtions payload to switch around the Models
     global payload
     global useSelectModels
@@ -205,7 +215,7 @@ def useCuratedModels():
         print(json.dumps(optionsPayload))
         status = requests.post(url=f'{url}/sdapi/v1/options', json=optionsPayload)
         print(status.json())
-        call_server_all_Samplers()
+        cycleSamplers()
             
             
 def printImageInfo(image):
@@ -219,15 +229,17 @@ def handleArgs():
     global allModels
     allModels = False
     global useSelectModels     
+    global useSelectSamplers
     
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="Path to PNG file with Stable Diffusion data")
     parser.add_argument("-ma", "--modelsall", help="Use All Models", action="store_true")
-    parser.add_argument("-s", "--samplers", help="Use All Samplers", action="store_true")
+    parser.add_argument("-sa", "--samplersall", help="Use All Samplers", action="store_true")
+    parser.add_argument("-ss", "--samplerselect", help="Use Only Selected Samplers", action="store_true")
     parser.add_argument("-ms", "--modelsselect", help="Use Only Selected Models", action="store_true")
     args = parser.parse_args()
     # -m allModels -s allSamplers arg1 = path to png
-    print("Using Path: ", args.path)    
+    print("Using Path: ", args.path)
     try:
         payload = getImageAttribObject(args.path) 
         with open('./data/payload.json', 'w') as f:
@@ -239,14 +251,31 @@ def handleArgs():
     if args.modelsall:
         allModels = True
         print("Use All Models")
-    if args.samplers:
+    if args.samplersall:
         allSamples = True
         print("Use All Samplers")
+    if args.samplerselect:
+        allSamples = False
+        useSelectSamplers = True
+        print("Use Curated Samplers")
+        selectSamplersToUse()
     if args.modelsselect:
         allModels = False
         useSelectModels = True
         selectModelsToUse()
         print("Use Curated Models")
+def selectSamplersToUse():
+    global selectSamplerList
+    global samplers
+
+    questions = [inquirer.Checkbox('selectedSamplers',
+        message="Select Samplers to Use",
+        choices=samplers)]
+    answers = inquirer.prompt(questions)
+    for s in answers['selectedSamplers']:
+        selectSamplerList.append(s)
+    print('Using the following samplers: ')
+    print(selectSamplerList)
 def selectModelsToUse():
     global selectModelList
     global models
@@ -262,7 +291,7 @@ def selectModelsToUse():
     for ans in answers["selectedModels"]:
         idx = next((i for i, item in enumerate(models) if item["shortName"] == ans), None)
         if (idx != None):
-            selectModelList.append(models[idx])
+            selectModelList.append(models[idx])    
     print(selectModelList)
     
 def run():
@@ -272,10 +301,10 @@ def run():
     print(f'Commence Run [allSamples: {allSamples}] [allModels: {allModels}] [useSelectModels: {useSelectModels}]')
     if (allSamples == True and allModels == False and useSelectModels == False):
         print('Samplers Only')
-        call_server_all_Samplers()
+        cycleSamplers()
     else:
         print('Sampler and Models')
-        useCuratedModels()
+        cycleModels()
 
 
 if(__name__ == "__main__"):
