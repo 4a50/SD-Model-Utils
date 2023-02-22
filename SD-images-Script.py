@@ -22,8 +22,8 @@ def main():
     global selectSamplerList
     global models
     global samplers
-    global logFile
-    logFile = ''
+    global useEventLog
+    useEventLog = True
     fileLocation = './txt2img/'
     payload = {}
     allSamples = False
@@ -34,30 +34,31 @@ def main():
     url = "http://127.0.0.1:7860"
     selectModelList = []
     selectSamplerList = []
-    models = getAllModels()
-    print('Init LogFile')
+    handleArgs()
     initLogFile()    
+    models = getAllModels()    
     printOut('INIT', 'All Model Names Retrieved')
     samplers = getSamplerList()
     printOut('INIT','All Sampler Names Retrieved')
-    handleArgs()
     # Check for txt2Iimg Dir.  Create it doesn't exist
 
     run()
 def initLogFile():    
     newFile = False
-    if not os.path.exists('./data/logFile.csv'):
+    exist = os.path.exists('./data/log.csv')
+    print(f'logfile exist: {exist}')
+    if not os.path.exists('./data/log.csv'):
         newFile = True
     with open('./data/log.csv', 'a') as logFile:
-
         if(newFile == True):
             logFile.write('dateTime, event, message\n') 
         
 def printOut(evnt, txt):    
     dt = datetime.now()    
     print(txt)
-    with open('./data/log.csv', 'a') as logFile:
-        logFile.write(f'{dt.strftime("%Y-%m-%d|%H:%M:%S")}, {evnt}, {txt}\n')
+    if(useEventLog == True):
+        with open('./data/log.csv', 'a') as logFile:
+            logFile.write(f'{dt.strftime("%Y-%m-%d|%H:%M:%S")}, {evnt}, {txt}\n')
         
 def checkForDirs():
     dir = "txt2img"
@@ -321,6 +322,7 @@ def handleArgs():
     allModels = False
     global useSelectModels
     global useSelectSamplers
+    global useEventLog
 
     parser = argparse.ArgumentParser()
     parser.description = 'Cycles a supplied image through all/selected Models and Samplers'
@@ -335,9 +337,12 @@ def handleArgs():
                         help="Use Only Selected Samplers", action="store_true")
     parser.add_argument("-ms", "--modelsselect",
                         help="Use Only Selected Models", action="store_true")
+    parser.add_argument("-nl", "--noeventlog", 
+                        help="Do not log events to file", action="store_true")
     args = parser.parse_args()
-    # -m allModels -s allSamplers arg1 = path to png
-    printOut('STATUS', f"Using Path: {args.path}")
+    if args.noeventlog:
+        useEventLog = False
+    # -m allModels -s allSamplers arg1 = path to png    
     try:
         payload = getImageAttribObject(args.path)
         with open('./data/payload.json', 'w') as f:
@@ -362,6 +367,7 @@ def handleArgs():
         useSelectModels = True
         selectModelsToUse()
         printOut('STATUS', "Use Curated Models")
+    
 
 
 def selectSamplersToUse():
