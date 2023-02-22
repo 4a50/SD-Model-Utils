@@ -5,6 +5,7 @@ import base64
 import os
 import argparse
 import inquirer
+from datetime import datetime, date, time, timezone
 from PIL import Image, PngImagePlugin
 
 
@@ -21,6 +22,8 @@ def main():
     global selectSamplerList
     global models
     global samplers
+    global useEventLog
+    useEventLog = True
     fileLocation = './txt2img/'
     payload = {}
     allSamples = False
@@ -31,29 +34,45 @@ def main():
     url = "http://127.0.0.1:7860"
     selectModelList = []
     selectSamplerList = []
-    models = getAllModels()
-    print('All Model Names Retrieved')
-    samplers = getSamplerList()
-    print('All Sampler Names Retrieved')
     handleArgs()
+    initLogFile()    
+    models = getAllModels()    
+    printOut('INIT', 'All Model Names Retrieved')
+    samplers = getSamplerList()
+    printOut('INIT','All Sampler Names Retrieved')
     # Check for txt2Iimg Dir.  Create it doesn't exist
 
     run()
-
-
+def initLogFile():    
+    newFile = False
+    exist = os.path.exists('./data/log.csv')
+    print(f'logfile exist: {exist}')
+    if not os.path.exists('./data/log.csv'):
+        newFile = True
+    with open('./data/log.csv', 'a') as logFile:
+        if(newFile == True):
+            logFile.write('dateTime, event, message\n') 
+        
+def printOut(evnt, txt):    
+    dt = datetime.now()    
+    print(txt)
+    if(useEventLog == True):
+        with open('./data/log.csv', 'a') as logFile:
+            logFile.write(f'{dt.strftime("%Y-%m-%d|%H:%M:%S")}, {evnt}, {txt}\n')
+        
 def checkForDirs():
     dir = "txt2img"
     if not os.path.exists(dir):
         os.makedirs(dir)
-        print("\"txt2img\" directory created")
+        printOut('DIRCHECK', "\"txt2img\" directory created")
     else:
-        print("\"txt2img\" directory found")
+        printOut('DIRCHECK', "\"txt2img\" directory found")
     dir = "data"
     if not os.path.exists(dir):
         os.makedirs(dir)
-        print("\"data\" directory created")
+        printOut('DIRCHECK', "\"data\" directory created")
     else:
-        print("\"data\" directory found")
+        printOut('DIRCHECK', "\"data\" directory found")
 
 
 def getCurrentModel():
@@ -93,7 +112,7 @@ def getSamplerList():
 def getImageAttribObject(path):
     imgBytes = None
 
-    print('pathToOpen: ' + path)
+    printOut('STATUS', 'pathToOpen: ' + path)
     with open(path, 'rb') as f:
         imgBytes = f.read()
 
@@ -140,7 +159,7 @@ def processImages(respJSON):
     global fileLocation
 
     for resp in respJSON:
-        print('Resp: ' + resp["name"])
+        printOut('STATUS', 'Resp: ' + resp["name"])
         for i in resp['image']['images']:
             image = Image.open(io.BytesIO(
                 base64.b64decode(i.split(",", 1)[0])))
@@ -172,7 +191,7 @@ def cycleSamplers(modelName=None):
     global url
     useSamplersList = []
     getModel = requests.get(url=f'{url}/sdapi/v1/options').json()
-    print('MODEL: ' + getModel["sd_model_checkpoint"])
+    printOut('STATUS', 'MODEL: ' + getModel["sd_model_checkpoint"])
 
     imageNamePrefix = ''
     if (modelName != None):
@@ -185,25 +204,30 @@ def cycleSamplers(modelName=None):
     elif (useSelectSamplers == True):
         useSamplersList = selectSamplerList
     else:
-        print('No curated sampler used')
+        printOut('STATUS', 'No curated sampler used')
         useSamplersList.append(payload["sampler_name"])
 
-    print(f'Cycling through {len(useSamplersList)} samplers')
+    printOut('STATUS', f'Cycling through {len(useSamplersList)} samplers')
     counter = 0
+    printOut('TIMESTAMP', '>>> Start Sampler Iteration')
+    stopwatchStart = datetime.now()
     for s in useSamplersList:
         imageName = f'{counter}-{imageNamePrefix}{s}-output.png'
-        print('Processing: ' + s)
+        printOut('STATUS', 'Processing: ' + s)
         payload["sampler_name"] = s
         try:
             r = call_server_txt2img()
             processImages([{"name": imageName, "image": r}])
         except KeyboardInterrupt:
-            print('Pushing Big Red Button')
+            printOut('ERROR','Keyboard Interrupt')
             quit()
         except:
-            print(f'Error in calling API for Image: {imageName}')
+            printOut('ERROR', f'Error in calling API for Image: {imageName}')
         counter += 1
-
+    printOut('TIMESTAMP', '<<< Completed Sampler Iteration')
+    stopwatchStop = datetime.now()
+    timedelta = stopwatchStop - stopwatchStart
+    printOut("TIMESTAMP", "{} hours, {} minutes, {} seconds".format(timedelta.seconds//3600, (timedelta.seconds//60)%60, timedelta.seconds%60))
 
 def call_server_txt2img():
     global url
@@ -227,9 +251,9 @@ def checkImageModelMatchesCurrentModel():
     resp = requests.get(f'{url}/sdapi/v1/options').json()
     curModel = payload["model"]
     if (resp["sd_model_checkpoint"].startswith(curModel)):
-        print('Image model is loaded.')
+        printOut('STATUS', 'Image model is loaded.')
         return True
-    print('Image model is NOT loaded')
+    printOut('STATUS', 'Image model is NOT loaded')
     return False
 
 
@@ -242,45 +266,51 @@ def cycleModels():
     global models
     useModels = []
     idx = -1
-    print(
+    printOut('STATUS', 
         f'CuratedModels [allSamples: {allSamples}] [allModels: {allModels}] [useSelectModels: {useSelectModels}]')
     if (allModels == True):
-        print('Cycling Throug All Models')
+        printOut('STATUS', 'Cycling Throug All Models')
         useModels = models
     elif (allModels == False and useSelectModels == True):
-        print('Cycling through curated models')
+        printOut('STATUS', 'Cycling through curated models')
         useModels = selectModelList
     else:
-        print('Using model in image')
+        printOut('STATUS', 'Using model in image')
         idx = checkIfModelInImageExists()
         if (idx != -1):
-            print('Image Model Exists')
+            printOut('STATUS', 'Image Model Exists')
             useModels.append(models[idx])
         else:
-            print('Image Model is not installed/availible. Install as required')
+            printOut('ERROR', 'Image Model is not installed/availible. Install as required')
             quit()
     
     
-    print(f'Using total of models {len(useModels)} used')
-    print('Use Models: ')
-    print(useModels)
+    printOut('STATUS', f'Using total of models {len(useModels)} used')
+    printOut('STATUS', 'Use Models: ')
+    printOut('STATUS', useModels)
     lenUseModels = len(useModels)
+    printOut('TIMESTAMP', '>>> Start Model Iteration')
+    stopwatchStart = datetime.now()
     for m in useModels:
-        print('Starting iteration of Models')
         if(lenUseModels > 1 or checkImageModelMatchesCurrentModel() == False):                              
-            print(f'Shifting Model to {m["fullName"]}')
+            printOut('STATUS', f'Shifting Model to {m["fullName"]}')
             optionsPayload = {"sd_model_checkpoint": m["fullName"]}
-            print(json.dumps(optionsPayload))
+            printOut('STATUS', json.dumps(optionsPayload))
             status = requests.post(
                 url=f'{url}/sdapi/v1/options', json=optionsPayload)
-            print(status.json())
+            printOut('STATUS', status.json())
         else:
-            print('Image Model is Currently Loaded')
+            printOut('STATUS', 'Image Model is Currently Loaded')
         cycleSamplers()
+    printOut('TIMESTAMP', '<<< Completed Model Iteration')
+    stopwatchStop = datetime.now()
+    timedelta = stopwatchStop - stopwatchStart
+    printOut("TIMESTAMP", "{} hours, {} minutes, {} seconds".format(timedelta.seconds//3600, (timedelta.seconds//60)%60, timedelta.seconds%60))
+
 
 
 def printImageInfo(image):
-    print(image)
+    printOut('INFO', image)
     quit()
 
 
@@ -292,6 +322,7 @@ def handleArgs():
     allModels = False
     global useSelectModels
     global useSelectSamplers
+    global useEventLog
 
     parser = argparse.ArgumentParser()
     parser.description = 'Cycles a supplied image through all/selected Models and Samplers'
@@ -306,33 +337,37 @@ def handleArgs():
                         help="Use Only Selected Samplers", action="store_true")
     parser.add_argument("-ms", "--modelsselect",
                         help="Use Only Selected Models", action="store_true")
+    parser.add_argument("-nl", "--noeventlog", 
+                        help="Do not log events to file", action="store_true")
     args = parser.parse_args()
-    # -m allModels -s allSamplers arg1 = path to png
-    print("Using Path: ", args.path)
+    if args.noeventlog:
+        useEventLog = False
+    # -m allModels -s allSamplers arg1 = path to png    
     try:
         payload = getImageAttribObject(args.path)
         with open('./data/payload.json', 'w') as f:
             f.write(json.dumps(payload))
     except ConnectionRefusedError:
-        print('Unable to contact SD Server.  Have you started it?')
+        printOut('ERROR','Unable to contact SD Server.  Have you started it?')
         quit()
-    print('Initial Payload Created')
+    printOut('STATUS', 'Initial Payload Created')
     if args.modelsall:
         allModels = True
-        print("Use All Models")
+        printOut('STATUS', "Use All Models")
     if args.samplersall:
         allSamples = True
-        print("Use All Samplers")
+        printOut('STATUS', "Use All Samplers")
     if args.samplerselect:
         allSamples = False
         useSelectSamplers = True
-        print("Use Curated Samplers")
+        printOut('STATUS', "Use Curated Samplers")
         selectSamplersToUse()
     if args.modelsselect:
         allModels = False
         useSelectModels = True
         selectModelsToUse()
-        print("Use Curated Models")
+        printOut('STATUS', "Use Curated Models")
+    
 
 
 def selectSamplersToUse():
@@ -345,8 +380,8 @@ def selectSamplersToUse():
     answers = inquirer.prompt(questions)
     for s in answers['selectedSamplers']:
         selectSamplerList.append(s)
-    print('Using the following samplers: ')
-    print(selectSamplerList)
+    printOut('STATUS', 'Using the following samplers: ')
+    printOut('STATUS', selectSamplerList)
 
 
 def selectModelsToUse():
@@ -366,19 +401,17 @@ def selectModelsToUse():
                    if item["shortName"] == ans), None)
         if (idx != None):
             selectModelList.append(models[idx])
-    print(selectModelList)
+    printOut(selectModelList)
 
 
 def run():
     global allSamples
     global allModels
     global useSelectModels
-    print(
+    printOut('STATUS', 
         f'Commence Run [allSamples: {allSamples}] [allModels: {allModels}] [useSelectModels: {useSelectModels}]'
         )
     cycleModels()
-    
-
 
 if (__name__ == "__main__"):
     main()
