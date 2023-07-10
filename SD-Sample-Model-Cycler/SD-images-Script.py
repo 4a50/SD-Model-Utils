@@ -31,15 +31,15 @@ def main():
     useSelectSamplers = False
     useSelectModels = False
     path = ''
-    url = "http://127.0.0.1:7860"
+    url = "http://127.0.0.1:3032"
     selectModelList = []
     selectSamplerList = []
+    models = getAllModels()    
+    print('All Model Names Retrieved')
+    print('All Sampler Names Retrieved')
+    samplers = getSamplerList()
     handleArgs()
     initLogFile()    
-    models = getAllModels()    
-    printOut('INIT', 'All Model Names Retrieved')
-    samplers = getSamplerList()
-    printOut('INIT','All Sampler Names Retrieved')
     # Check for txt2Iimg Dir.  Create it doesn't exist
 
     run()
@@ -129,7 +129,11 @@ def getImageAttribObject(path):
     propertiesObj = {}
     # Positive and Negative prompts
     infoArr = params.split('\n')
-    attribArr = infoArr[2].split(',')
+    [print(f'\n{x}\n') for x in infoArr]
+    print(f'infoArrLen: {len(infoArr)}')
+    if len(infoArr) < 3: attribArr = infoArr[1].split(',')
+    else: attribArr = infoArr[2].split(',')
+    
 
     propertiesObj["prompt"] = infoArr[0]
     negPromptLen = len(infoArr[1])
@@ -147,6 +151,8 @@ def getImageAttribObject(path):
             sizeList = value.split('x')
             propertiesObj['width'] = int(sizeList[0])
             propertiesObj['height'] = int(sizeList[1])
+        if (key == 'seed'):
+            propertiesObj['seed'] = -1
         else:
 
             propertiesObj[key] = value
@@ -157,7 +163,6 @@ def getImageAttribObject(path):
 
 def processImages(respJSON):
     global fileLocation
-
     for resp in respJSON:
         printOut('STATUS', 'Resp: ' + resp["name"])
         for i in resp['image']['images']:
@@ -212,6 +217,7 @@ def cycleSamplers(modelName=None):
     printOut('TIMESTAMP', '>>> Start Sampler Iteration')
     stopwatchStart = datetime.now()
     for s in useSamplersList:
+        printOut('VAR', f's: {s}')
         imageName = f'{counter}-{imageNamePrefix}{s}-output.png'
         printOut('STATUS', 'Processing: ' + s)
         payload["sampler_name"] = s
@@ -286,7 +292,11 @@ def cycleModels():
     
     
     printOut('STATUS', f'Using total of models {len(useModels)} used')
-    printOut('STATUS', 'Use Models: ')
+    modelStringList = []
+    for mls in useModels:
+        modelStringList.append(mls["shortName"])
+    printOut('STATUS', f'Use Models: {json.dumps(modelStringList)}')
+    
     printOut('STATUS', useModels)
     lenUseModels = len(useModels)
     printOut('TIMESTAMP', '>>> Start Model Iteration')
@@ -345,6 +355,7 @@ def handleArgs():
     # -m allModels -s allSamplers arg1 = path to png    
     try:
         payload = getImageAttribObject(args.path)
+        payload["restore_faces"] = True
         with open('./data/payload.json', 'w') as f:
             f.write(json.dumps(payload))
     except ConnectionRefusedError:
@@ -401,7 +412,7 @@ def selectModelsToUse():
                    if item["shortName"] == ans), None)
         if (idx != None):
             selectModelList.append(models[idx])
-    printOut(selectModelList)
+    printOut('STATUS', selectModelList)
 
 
 def run():

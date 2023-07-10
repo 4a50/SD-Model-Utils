@@ -1,5 +1,9 @@
-# Stable Diffusion Sample and Model Cycler
-## By: [4a50](https://github.com/4a50)
+# Stable Diffusion Helper Scripts
+
+## Sample and Model Cycler
+
+By: [4a50](https://github.com/4a50)
+
 ---
 ### Python Script to take a Stable Diffusion Image and cycle through either all Samplers, all Models, or both
 
@@ -31,3 +35,10 @@ No options provided will create an image using data from image
 |1.0| Use PNG to cycle through Samplers or Models CLI|2/20/23
 |1.1| Added Selectable Models and Samplers |2/21/23
 |1.2| Event Log to File Option|2/21/23
+|1.21| Fixed Bug if picture metadata does not negative prompts
+
+## SD CivitAi Model Handler
+
+By: [4a50](https://github.com/4a50)
+
+### Scrapes and Maintains JSON file of downloaded models
