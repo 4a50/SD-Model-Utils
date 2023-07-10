@@ -1,0 +1,31 @@
+{
+    "ynq": [
+        [
+            {
+                "type": "list",
+                "name": "modelEntry",
+                "message": "add message here",
+                "choices": ["No", "Yes", "Quit"]
+            }            
+        ]    
+    ],
+    "select_filenames": 
+    [
+        {
+            "type": "list",
+            "name": "chooseFile",
+            "message": "Select Filname from list to update:",
+            "choices": []
+        }
+    ], 
+    "main-selection":
+    [
+        {
+            "type": "list",
+            "name": "mSelect",
+            "message": "Choose Option:",
+            "choices": ["Find Updated Models(Non-Login)", "Update File Names", "Quit"]
+        }
+    ]
+
+}
