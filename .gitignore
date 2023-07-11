@@ -1,5 +1,5 @@
 # Byte-compiled / optimized / DLL files
-/SD-Model-Update-Check/__pycache__/*.__pycache__
+/SD-Model-Update-Check/__pycache__
 __pycache__/
 *.py[cod]
 *$py.class

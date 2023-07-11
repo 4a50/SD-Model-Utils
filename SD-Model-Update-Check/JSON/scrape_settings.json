@@ -1,0 +1,11 @@
+{
+    "civitai":
+        {
+            "root_url": "https://civitai.com",
+            "site_name": "CivitAi",
+            "dowloadPath_class": "mantine-zj7kjy",
+            "nsfw_err_class": "mantine-ljqvxq",
+            "dl_size_class": "mantine-11zngbh",
+            "table_values_class": "mantine-1avyp1d"
+        }
+}
