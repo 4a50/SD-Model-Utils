@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 from fileInfo import getFileInfo
+from scrap import scrapCivitAI
 import inquirer
 from pprint import pprint
 from PyInquirer import prompt, Separator
@@ -12,14 +13,18 @@ import os
 path_saved = "./JSON/saved.json"
 listFileNames = None
 listYN = ["No", "Yes", "Quit"]
+qJSON = None
 print("JSON File Exists Here: " + str(os.path.exists(path_saved)))
+with open(path_saved, 'rb') as f:
+        jsonList = json.load(f)
+
+
 def getKVP_savedJSON():
-    with open(path_saved, 'rb') as f:
-        jsonList = json.load(f)    
+    global jsonList  
     jsonKVP = {"dict":{}}
     idx = 0
     for el in jsonList["models"]:
-        print(el["filename"])
+        
         if(el["filename"] == None or el["filename"] == "" ):             
             jsonKVP["dict"][str(idx)] = el
         else:
@@ -27,12 +32,13 @@ def getKVP_savedJSON():
         idx = idx + 1
     jsonKVP["keys"] = list(jsonKVP["dict"].keys())
     return jsonKVP   
+jsonKVP = getKVP_savedJSON()
 def getFilename_dir():     
     listFileNames = []
     [listFileNames.append(x["fileName"]) for x in getFileInfo()]
     listFileNames.sort()
     listFileNames.insert(0, "None")
-    print(f"Files Count: {len(listFileNames)}" )
+    print(f"Files Count: {len(listFileNames)}\n\n" )
     return listFileNames
 
 def referenceCode():
@@ -78,22 +84,26 @@ def UpdateJSONEntry(modelObj):
      
 # Iterate through all of the files, determine if there is an entry for it, of not off to create a new entry by scraping the URL or manually
 def Main():
-    jsonList = getKVP_savedJSON()
+    global jsonKVP
     global listFileNames
     global listYN
+    global qJSON
+    with open('./JSON/questions.json', "r") as f:
+        qJSON = json.load(f)
+
     listFileNames = getFilename_dir()
     
 
     for i in listFileNames:
 
         # if a key exists
-        if i in jsonList["keys"]:
+        if i in jsonKVP["keys"]:
             print('\n\n**********************')
-            for k in jsonList['dict'][i].keys():
-                value = jsonList['dict'][i][k]
+            for k in jsonKVP['dict'][i].keys():
+                value = jsonKVP['dict'][i][k]
                 print(f'{k}: {value}')
             print('**********************\n')
-            objName = jsonList['dict'][i]["name"]
+            objName = jsonKVP['dict'][i]["name"]
             q = [
                 {
                     'type': 'list',
@@ -104,7 +114,8 @@ def Main():
             ]                    
             a = prompt.prompt(q, style=custom_style_1)  
             if a["modelEntry"] == 'Yes':                                
-                jsonList['dict'][i] = UpdateJSONEntry(jsonList['dict'][i])
+                jsonKVP['dict'][i] = UpdateJSONEntry(jsonKVP['dict'][i])
+                saveJson()
             elif a["modelEntry"] == 'Quit':                
                 quit()
             else:
@@ -121,31 +132,18 @@ def Main():
             answers = prompt.prompt(question, style=custom_style_1)
             if answers['addNew']:
                 print(addNewEntry(i))
+                print(f'**ENTRY ADDED** --> {i}')
             else:
                 print(f'**NO ENTRY ADDED** --> {i}')
             
 def addNewEntry(fileName):
-    global listYN
-    q = [
-                {
-                    'type': 'input',
-                    'name': 'ModelName',
-                    'message': 'Enter Model Name'                    
-                },
-                {
-                    'type': 'input',
-                    'name': 'ModelUrl',
-                    'message': 'Enter URL'                    
-                },
-                {
-                    'type': 'input',
-                    'name': 'ModelName',
-                    'message': 'Enter Model Name'                    
-                },
-
-            ]                    
-    a = prompt.prompt(q, style=custom_style_1)  
-    return {
+    global listYN, qJSON
+    global jsonList
+    
+    q = qJSON["new_input"]           
+    qScrape = qJSON["scrapeQ"]
+    a = prompt.prompt(q, style=custom_style_1)
+    modelJson = {
         "name": a['ModelName'],
         "url": a['ModelUrl'],
         "last_uploaded": "",
@@ -154,6 +152,25 @@ def addNewEntry(fileName):
         "login": False,
         "filename": fileName
         }
+    scrapeA = prompt.prompt(qScrape, style=custom_style_1)
+    if (scrapeA["scrapInfo"]):    
+        print('Scraping the information')
+        scrape = scrapCivitAI(modelJson)              
+        jsonList["models"].append(scrape)
+        jsonKVP['dict'].update({scrape["filename"]: scrape})
+        saveJson()
+        
+
+    return modelJson
+def saveJson():
+    global jsonList
+    jsonSave = []
+    for k in jsonKVP["dict"].keys():
+        jsonSave.append(jsonKVP["dict"][k])
+    jsonList["models"] = jsonSave    
+    with open('./JSON/saved.json', 'w', encoding='utf-16') as f:
+        json.dump(jsonList, f)
+
         
 if __name__ == "__main__":
     Main()
