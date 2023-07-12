@@ -26,6 +26,28 @@
             "message": "Choose Option:",
             "choices": ["Find Updated Models(Non-Login)", "Update File Names", "Quit"]
         }
-    ]
+    ],
+    "new_input":
+    [
+        {
+            "type": "input",
+            "name": "ModelName",
+            "message": "Enter Model Name"                    
+        },
+        {
+            "type": "input",
+            "name": "ModelUrl",
+            "message": "Enter URL[Non-Base]"                    
+        }
+    ],
+    "scrapeQ":
+    [
+        {
+            "type": "confirm",
+            "message": "Would you like to scrape civitai.com for the rest of the information?",
+            "name": "scrapInfo",
+            "default": false
+        }  
+    ]       
 
 }
