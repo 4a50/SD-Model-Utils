@@ -1,0 +1,74 @@
+#left-top {
+    /* align: left top; this is the default value and is implied. */
+}
+
+#center-top {
+    align: center top;
+}
+
+#right-top {
+    align: right top;
+}
+
+#left-middle {
+    align: left middle;
+}
+
+#center-middle {
+    align: center middle;
+}
+
+#right-middle {
+    align: right middle;
+}
+
+#left-bottom {
+    align: left bottom;
+}
+
+#center-bottom {
+    align: center bottom;
+}
+
+#right-bottom {
+    align: right bottom;
+}
+
+
+
+/* Container {
+    background: $boost;
+    border: solid gray;
+    layout: horizontal;    
+} */
+
+Label {
+    text-style: bold;
+    /* text-align: center; */
+    /* width: auto; */
+    color: auto;
+    height: 1;    
+    padding: 0 3;
+    
+}
+
+TitleHeader {
+    dock: top;
+    layout: grid;
+    grid-size: 3 1;
+    border: heavy green;  
+    background: rgb(0,255,0);
+    height: 5;
+    grid-gutter: 0 2;
+    width: 100%;
+    /* margin: 1; */
+    /* min-width: 50; */
+    /* padding: 1; */
+
+}
+#title-text {
+    width: 100%;   
+    align: center middle;    
+    text-align: center;
+
+}
