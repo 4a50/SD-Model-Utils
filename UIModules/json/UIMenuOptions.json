@@ -1,0 +1,8 @@
+{
+    "main_menu_option_list": [
+        "Update Models",
+        "Model-Sampler Cycler",
+        "Create WGET bash file",
+        "Generate Weight String"
+    ]
+}
